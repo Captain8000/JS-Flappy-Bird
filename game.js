@@ -24,7 +24,7 @@ scrn.addEventListener("click", () => {
 
 scrn.onkeydown = function keyDown(e) {
   if (e.keyCode == 32 || e.keyCode == 87 || e.keyCode == 38) {
-    // Space Key or W key or arrow up
+    // Space key or W key or arrow up
     switch (state.curr) {
       case state.getReady:
         state.curr = state.Play;
@@ -80,7 +80,7 @@ const bg = {
   x: 0,
   y: 0,
   draw: function () {
-    y = parseFloat(scrn.height - this.sprite.height);
+    let y = parseFloat(scrn.height - this.sprite.height);
     sctx.drawImage(this.sprite, this.x, y);
   },
 };
@@ -112,7 +112,6 @@ const pipe = {
     this.pipes.forEach((pipe) => {
       pipe.x -= dx;
     });
-
     if (this.pipes.length && this.pipes[0].x < -this.top.sprite.width) {
       this.pipes.shift();
       this.moved = true;
@@ -120,6 +119,8 @@ const pipe = {
   },
 };
 const bird = {
+  // Added scale property for resizing the bird image
+  scale: 0.5,
   animations: [
     { sprite: new Image() },
     { sprite: new Image() },
@@ -139,7 +140,14 @@ const bird = {
     sctx.save();
     sctx.translate(this.x, this.y);
     sctx.rotate(this.rotatation * RAD);
-    sctx.drawImage(this.animations[this.frame].sprite, -w / 2, -h / 2);
+    // Draw the bird using the scaled width and height
+    sctx.drawImage(
+      this.animations[this.frame].sprite,
+      -w * this.scale / 2,
+      -h * this.scale / 2,
+      w * this.scale,
+      h * this.scale
+    );
     sctx.restore();
   },
   update: function () {
@@ -158,7 +166,6 @@ const bird = {
         if (this.y + r >= gnd.y || this.collisioned()) {
           state.curr = state.gameOver;
         }
-
         break;
       case state.gameOver:
         this.frame = 1;
@@ -175,7 +182,6 @@ const bird = {
             SFX.played = true;
           }
         }
-
         break;
     }
     this.frame = this.frame % this.animations.length;
@@ -195,10 +201,10 @@ const bird = {
   },
   collisioned: function () {
     if (!pipe.pipes.length) return;
-    let bird = this.animations[0].sprite;
+    let birdImg = this.animations[0].sprite;
     let x = pipe.pipes[0].x;
     let y = pipe.pipes[0].y;
-    let r = bird.height / 4 + bird.width / 4;
+    let r = birdImg.height / 4 + birdImg.width / 4;
     let roof = y + parseFloat(pipe.top.sprite.height);
     let floor = roof + pipe.gap;
     let w = parseFloat(pipe.top.sprite.width);
@@ -235,8 +241,7 @@ const UI = {
         this.y = parseFloat(scrn.height - this.getReady.sprite.height) / 2;
         this.x = parseFloat(scrn.width - this.getReady.sprite.width) / 2;
         this.tx = parseFloat(scrn.width - this.tap[0].sprite.width) / 2;
-        this.ty =
-          this.y + this.getReady.sprite.height - this.tap[0].sprite.height;
+        this.ty = this.y + this.getReady.sprite.height - this.tap[0].sprite.height;
         sctx.drawImage(this.getReady.sprite, this.x, this.y);
         sctx.drawImage(this.tap[this.frame].sprite, this.tx, this.ty);
         break;
@@ -244,8 +249,7 @@ const UI = {
         this.y = parseFloat(scrn.height - this.gameOver.sprite.height) / 2;
         this.x = parseFloat(scrn.width - this.gameOver.sprite.width) / 2;
         this.tx = parseFloat(scrn.width - this.tap[0].sprite.width) / 2;
-        this.ty =
-          this.y + this.gameOver.sprite.height - this.tap[0].sprite.height;
+        this.ty = this.y + this.gameOver.sprite.height - this.tap[0].sprite.height;
         sctx.drawImage(this.gameOver.sprite, this.x, this.y);
         sctx.drawImage(this.tap[this.frame].sprite, this.tx, this.ty);
         break;
@@ -267,21 +271,17 @@ const UI = {
         sctx.font = "40px Squada One";
         let sc = `SCORE :     ${this.score.curr}`;
         try {
-          this.score.best = Math.max(
-            this.score.curr,
-            localStorage.getItem("best")
-          );
+          this.score.best = Math.max(this.score.curr, localStorage.getItem("best"));
           localStorage.setItem("best", this.score.best);
           let bs = `BEST  :     ${this.score.best}`;
-          sctx.fillText(sc, scrn.width / 2 - 80, scrn.height / 2 + 0);
-          sctx.strokeText(sc, scrn.width / 2 - 80, scrn.height / 2 + 0);
+          sctx.fillText(sc, scrn.width / 2 - 80, scrn.height / 2);
+          sctx.strokeText(sc, scrn.width / 2 - 80, scrn.height / 2);
           sctx.fillText(bs, scrn.width / 2 - 80, scrn.height / 2 + 30);
           sctx.strokeText(bs, scrn.width / 2 - 80, scrn.height / 2 + 30);
         } catch (e) {
           sctx.fillText(sc, scrn.width / 2 - 85, scrn.height / 2 + 15);
           sctx.strokeText(sc, scrn.width / 2 - 85, scrn.height / 2 + 15);
         }
-
         break;
     }
   },
@@ -328,7 +328,6 @@ function draw() {
   sctx.fillRect(0, 0, scrn.width, scrn.height);
   bg.draw();
   pipe.draw();
-
   bird.draw();
   gnd.draw();
   UI.draw();
