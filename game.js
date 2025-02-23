@@ -1,7 +1,6 @@
 const RAD = Math.PI / 180;
 const scrn = document.getElementById("canvas");
 const sctx = scrn.getContext("2d");
-
 scrn.tabIndex = 1;
 scrn.addEventListener("click", () => {
   switch (state.curr) {
@@ -25,6 +24,7 @@ scrn.addEventListener("click", () => {
 
 scrn.onkeydown = function keyDown(e) {
   if (e.keyCode == 32 || e.keyCode == 87 || e.keyCode == 38) {
+    // Space key or W key or arrow up
     switch (state.curr) {
       case state.getReady:
         state.curr = state.Play;
@@ -53,7 +53,6 @@ const state = {
   Play: 1,
   gameOver: 2,
 };
-
 const SFX = {
   start: new Audio(),
   flap: new Audio(),
@@ -62,7 +61,6 @@ const SFX = {
   die: new Audio(),
   played: false,
 };
-
 const gnd = {
   sprite: new Image(),
   x: 0,
@@ -77,7 +75,6 @@ const gnd = {
     this.x = this.x % (this.sprite.width / 2);
   },
 };
-
 const bg = {
   sprite: new Image(),
   x: 0,
@@ -87,7 +84,6 @@ const bg = {
     sctx.drawImage(this.sprite, this.x, y);
   },
 };
-
 const pipe = {
   top: { sprite: new Image() },
   bot: { sprite: new Image() },
@@ -122,8 +118,8 @@ const pipe = {
     }
   },
 };
-
 const bird = {
+  // Scale property to resize the bird image
   scale: 0.4,
   animations: [
     { sprite: new Image() },
@@ -139,21 +135,23 @@ const bird = {
   thrust: 3.6,
   frame: 0,
   draw: function () {
-    let h = this.animations[this.frame].sprite.height * this.scale;
-    let w = this.animations[this.frame].sprite.width * this.scale;
+    let h = this.animations[this.frame].sprite.height;
+    let w = this.animations[this.frame].sprite.width;
     sctx.save();
     sctx.translate(this.x, this.y);
     sctx.rotate(this.rotatation * RAD);
+    // Draw the bird using the scaled width and height
     sctx.drawImage(
       this.animations[this.frame].sprite,
-      -w / 2,
-      -h / 2,
-      w,
-      h
+      -w * this.scale / 2,
+      -h * this.scale / 2,
+      w * this.scale,
+      h * this.scale
     );
     sctx.restore();
   },
   update: function () {
+    // Use scaled dimensions for collision radius
     let r = (this.animations[0].sprite.width * this.scale) / 2;
     switch (state.curr) {
       case state.getReady:
@@ -166,7 +164,7 @@ const bird = {
         this.y += this.speed;
         this.setRotation();
         this.speed += this.gravity;
-        if (this.y + r >= gnd.y || this.collisioned(r)) {
+        if (this.y + r >= gnd.y || this.collisioned()) {
           state.curr = state.gameOver;
         }
         break;
@@ -189,25 +187,152 @@ const bird = {
     }
     this.frame = this.frame % this.animations.length;
   },
-  collisioned: function (radius) {
-    if (!pipe.pipes.length) return false;
+  flap: function () {
+    if (this.y > 0) {
+      SFX.flap.play();
+      this.speed = -this.thrust;
+    }
+  },
+  setRotation: function () {
+    if (this.speed <= 0) {
+      this.rotatation = Math.max(-25, (-25 * this.speed) / (-1 * this.thrust));
+    } else if (this.speed > 0) {
+      this.rotatation = Math.min(90, (90 * this.speed) / (this.thrust * 2));
+    }
+  },
+  collisioned: function () {
+    if (!pipe.pipes.length) return;
+    let birdImg = this.animations[0].sprite;
+    // Adjust collision radius using scaled dimensions
+    let r = (birdImg.height * this.scale) / 4 + (birdImg.width * this.scale) / 4;
     let x = pipe.pipes[0].x;
     let y = pipe.pipes[0].y;
     let roof = y + parseFloat(pipe.top.sprite.height);
     let floor = roof + pipe.gap;
     let w = parseFloat(pipe.top.sprite.width);
-    if (this.x + radius >= x && this.x + radius < x + w) {
-      if (this.y - radius <= roof || this.y + radius >= floor) {
-        SFX.hit.play();
-        return true;
+    if (this.x + r >= x) {
+      if (this.x + r < x + w) {
+        if (this.y - r <= roof || this.y + r >= floor) {
+          SFX.hit.play();
+          return true;
+        }
+      } else if (pipe.moved) {
+        UI.score.curr++;
+        SFX.score.play();
+        pipe.moved = false;
       }
-    } else if (pipe.moved) {
-      UI.score.curr++;
-      SFX.score.play();
-      pipe.moved = false;
     }
-    return false;
   },
 };
+const UI = {
+  getReady: { sprite: new Image() },
+  gameOver: { sprite: new Image() },
+  tap: [{ sprite: new Image() }, { sprite: new Image() }],
+  score: {
+    curr: 0,
+    best: 0,
+  },
+  x: 0,
+  y: 0,
+  tx: 0,
+  ty: 0,
+  frame: 0,
+  draw: function () {
+    switch (state.curr) {
+      case state.getReady:
+        this.y = parseFloat(scrn.height - this.getReady.sprite.height) / 2;
+        this.x = parseFloat(scrn.width - this.getReady.sprite.width) / 2;
+        this.tx = parseFloat(scrn.width - this.tap[0].sprite.width) / 2;
+        this.ty = this.y + this.getReady.sprite.height - this.tap[0].sprite.height;
+        sctx.drawImage(this.getReady.sprite, this.x, this.y);
+        sctx.drawImage(this.tap[this.frame].sprite, this.tx, this.ty);
+        break;
+      case state.gameOver:
+        this.y = parseFloat(scrn.height - this.gameOver.sprite.height) / 2;
+        this.x = parseFloat(scrn.width - this.gameOver.sprite.width) / 2;
+        this.tx = parseFloat(scrn.width - this.tap[0].sprite.width) / 2;
+        this.ty = this.y + this.gameOver.sprite.height - this.tap[0].sprite.height;
+        sctx.drawImage(this.gameOver.sprite, this.x, this.y);
+        sctx.drawImage(this.tap[this.frame].sprite, this.tx, this.ty);
+        break;
+    }
+    this.drawScore();
+  },
+  drawScore: function () {
+    sctx.fillStyle = "#FFFFFF";
+    sctx.strokeStyle = "#000000";
+    switch (state.curr) {
+      case state.Play:
+        sctx.lineWidth = "2";
+        sctx.font = "35px Squada One";
+        sctx.fillText(this.score.curr, scrn.width / 2 - 5, 50);
+        sctx.strokeText(this.score.curr, scrn.width / 2 - 5, 50);
+        break;
+      case state.gameOver:
+        sctx.lineWidth = "2";
+        sctx.font = "40px Squada One";
+        let sc = `SCORE :     ${this.score.curr}`;
+        try {
+          this.score.best = Math.max(this.score.curr, localStorage.getItem("best"));
+          localStorage.setItem("best", this.score.best);
+          let bs = `BEST  :     ${this.score.best}`;
+          sctx.fillText(sc, scrn.width / 2 - 80, scrn.height / 2);
+          sctx.strokeText(sc, scrn.width / 2 - 80, scrn.height / 2);
+          sctx.fillText(bs, scrn.width / 2 - 80, scrn.height / 2 + 30);
+          sctx.strokeText(bs, scrn.width / 2 - 80, scrn.height / 2 + 30);
+        } catch (e) {
+          sctx.fillText(sc, scrn.width / 2 - 85, scrn.height / 2 + 15);
+          sctx.strokeText(sc, scrn.width / 2 - 85, scrn.height / 2 + 15);
+        }
+        break;
+    }
+  },
+  update: function () {
+    if (state.curr == state.Play) return;
+    this.frame += frames % 10 == 0 ? 1 : 0;
+    this.frame = this.frame % this.tap.length;
+  },
+};
+
+gnd.sprite.src = "img/ground.png";
+bg.sprite.src = "img/BG.png";
+pipe.top.sprite.src = "img/toppipe.png";
+pipe.bot.sprite.src = "img/botpipe.png";
+UI.gameOver.sprite.src = "img/go.png";
+UI.getReady.sprite.src = "img/getready.png";
+UI.tap[0].sprite.src = "img/tap/t0.png";
+UI.tap[1].sprite.src = "img/tap/t1.png";
+bird.animations[0].sprite.src = "img/bird/b0.png";
+bird.animations[1].sprite.src = "img/bird/b1.png";
+bird.animations[2].sprite.src = "img/bird/b2.png";
+bird.animations[3].sprite.src = "img/bird/b0.png";
+SFX.start.src = "sfx/start.wav";
+SFX.flap.src = "sfx/flap.wav";
+SFX.score.src = "sfx/score.wav";
+SFX.hit.src = "sfx/hit.wav";
+SFX.die.src = "sfx/die.wav";
+
+function gameLoop() {
+  update();
+  draw();
+  frames++;
+}
+
+function update() {
+  bird.update();
+  gnd.update();
+  pipe.update();
+  UI.update();
+}
+
+function draw() {
+  sctx.fillStyle = "#30c0df";
+  sctx.fillRect(0, 0, scrn.width, scrn.height);
+  bg.draw();
+  pipe.draw();
+  bird.draw();
+  gnd.draw();
+  UI.draw();
+}
 
 setInterval(gameLoop, 20);
