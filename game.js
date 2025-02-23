@@ -120,7 +120,7 @@ const pipe = {
 };
 const bird = {
   // Scale property to resize the bird image
-  scale: 0.4,
+  scale: 1,
   animations: [
     { sprite: new Image() },
     { sprite: new Image() },
